@@ -12,10 +12,9 @@ impl Display for Mode {
 			f,
 			"{}",
 			match self {
-				Mode::Normal => "NORMAL",
-				Mode::Insert => "INSERT",
+				Self::Normal => "NORMAL",
+				Self::Insert => "INSERT",
 			}
-			.to_string()
 		)
 	}
 }

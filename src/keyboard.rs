@@ -6,24 +6,20 @@ use crate::terminal::Terminal;
 use crate::TerminalResult;
 
 pub fn handle_input(terminal: &mut Terminal) -> TerminalResult<bool> {
-	if let Event::Key(key_event) = read().unwrap() {
+	if let Event::Key(key_event) = read()? {
 		match key_event.code {
 			KeyCode::Left => terminal.move_cursor(Direction::Left)?,
 			KeyCode::Right => terminal.move_cursor(Direction::Right)?,
 			KeyCode::Up => terminal.move_cursor(Direction::Up)?,
 			KeyCode::Down => terminal.move_cursor(Direction::Down)?,
 			_ => match terminal.mode {
-				Mode::Insert => insert_mode_key_event(key_event.code, terminal).unwrap(),
+				Mode::Insert => insert_mode_key_event(key_event.code, terminal)?,
 				Mode::Normal => match key_event.code {
-					KeyCode::Char(char) => {
-						if terminal.mode == Mode::Normal {
-							match char {
-								'q' => return Ok(true),
-								'i' => terminal.mode = Mode::Insert,
-								_ => {}
-							}
-						}
-					}
+					KeyCode::Char(char) if terminal.mode == Mode::Normal => match char {
+						'q' => return Ok(true),
+						'i' => terminal.mode = Mode::Insert,
+						_ => {}
+					},
 					_ => {}
 				},
 			},
@@ -33,6 +29,7 @@ pub fn handle_input(terminal: &mut Terminal) -> TerminalResult<bool> {
 	Ok(false)
 }
 
+#[allow(clippy::match_same_arms)]
 pub fn insert_mode_key_event(keycode: KeyCode, terminal: &mut Terminal) -> TerminalResult<()> {
 	match keycode {
 		KeyCode::Backspace => terminal.backspace()?,

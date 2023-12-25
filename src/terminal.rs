@@ -34,7 +34,7 @@ impl Drop for Terminal {
 }
 
 impl Terminal {
-	pub fn new() -> TerminalResult<Terminal> {
+	pub fn new() -> TerminalResult<Self> {
 		execute!(stdout(), EnterAlternateScreen)?;
 		enable_raw_mode()?;
 
@@ -44,7 +44,7 @@ impl Terminal {
 			disable_raw_mode().expect("Failed to disable raw mode");
 			execute!(stdout(), ResetColor, Show, LeaveAlternateScreen)
 				.expect("Failed to clean up screen");
-			println!("{panic_info}")
+			println!("{panic_info}");
 		}));
 
 		let (columns, rows) = size()?;
@@ -63,7 +63,7 @@ impl Terminal {
 	}
 
 	pub fn insert_char(&mut self, char: char) -> TerminalResult<()> {
-		self.buffer[self.current_row].insert(self.current_column.into(), char);
+		self.buffer[self.current_row].insert(self.current_column, char);
 
 		self.current_column += 1;
 
@@ -74,6 +74,10 @@ impl Terminal {
 
 	// TODO: Make this respect backspacing newlines
 	pub fn backspace(&mut self) -> TerminalResult<()> {
+		if self.current_column == 0 && self.current_row == 0 {
+			return Ok(());
+		}
+
 		self.buffer[self.current_row].remove(self.current_column - 1);
 
 		self.current_column -= 1;
@@ -142,10 +146,11 @@ impl Terminal {
 	///
 	/// Must be followed by an execute otherwise nothing will happen.
 	fn queue_status(&mut self) -> TerminalResult<()> {
-		let left = format!(" {} ", self.mode.to_string());
+		let left = format!(" {} ", self.mode);
 
 		let right = format!(" {}:{}", self.current_row, self.current_column,);
 
+		#[allow(clippy::cast_possible_truncation)]
 		queue!(
 			self.output,
 			MoveToRow(self.rows - 2),
