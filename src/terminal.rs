@@ -1,7 +1,7 @@
 use std::io::{stdout, Write};
 
 use crossterm::cursor::{
-	MoveLeft, MoveRight, MoveTo, MoveToColumn, MoveToNextLine, MoveToRow, RestorePosition,
+	MoveLeft, MoveRight, MoveTo, MoveToColumn, MoveToNextLine, MoveToRow, MoveUp, RestorePosition,
 	SavePosition, Show,
 };
 use crossterm::style::{Print, ResetColor, SetBackgroundColor};
@@ -75,6 +75,31 @@ impl Terminal {
 	// TODO: Make this respect backspacing newlines
 	pub fn backspace(&mut self) -> TerminalResult<()> {
 		if self.current_column == 0 && self.current_row == 0 {
+			return Ok(());
+		}
+
+		// Move the contents of this line to the previous.
+		if self.current_column == 0 {
+			let previous_line_len = self.buffer[self.current_row - 1].len();
+
+			let current_line = self.buffer.remove(self.current_row);
+
+			self.buffer[self.current_row - 1].extend(current_line);
+
+			// Clears buffer so text can be rerendered cleanly.
+			queue!(self.output, Clear(ClearType::FromCursorDown))?;
+
+			#[allow(clippy::cast_possible_truncation)]
+			// Move curser up to previous line before concatenating the lines.
+			queue!(
+				self.output,
+				MoveUp(1),
+				MoveToColumn(previous_line_len as u16)
+			)?;
+
+			self.current_row -= 1;
+			self.current_column = previous_line_len;
+
 			return Ok(());
 		}
 
