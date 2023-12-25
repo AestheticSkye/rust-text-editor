@@ -5,9 +5,9 @@ use crate::mode::Mode;
 use crate::terminal::Terminal;
 use crate::TerminalResult;
 
-pub fn handle_input(terminal: &mut Terminal) -> TerminalResult<bool> {
-	if let Event::Key(key_event) = read()? {
-		match key_event.code {
+pub fn handle_event(terminal: &mut Terminal) -> TerminalResult<bool> {
+	match read()? {
+		Event::Key(key_event) => match key_event.code {
 			KeyCode::Left => terminal.move_cursor(Direction::Left)?,
 			KeyCode::Right => terminal.move_cursor(Direction::Right)?,
 			KeyCode::Up => terminal.move_cursor(Direction::Up)?,
@@ -23,7 +23,9 @@ pub fn handle_input(terminal: &mut Terminal) -> TerminalResult<bool> {
 					_ => {}
 				},
 			},
-		}
+		},
+		Event::Resize(columns, rows) => terminal.resize(columns, rows)?,
+		_ => {}
 	}
 
 	Ok(false)

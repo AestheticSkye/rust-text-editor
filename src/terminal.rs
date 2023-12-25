@@ -49,7 +49,7 @@ impl Terminal {
 
 		let (columns, rows) = size()?;
 
-		let terminal = Self {
+		Ok(Self {
 			buffer: vec![vec![]],
 			columns,
 			rows,
@@ -57,9 +57,7 @@ impl Terminal {
 			current_column: 0,
 			current_row: 0,
 			output: Box::new(stdout()),
-		};
-
-		Ok(terminal)
+		})
 	}
 
 	pub fn insert_char(&mut self, char: char) -> TerminalResult<()> {
@@ -177,6 +175,19 @@ impl Terminal {
 			self.current_row -= 1;
 			self.current_column = previous_line_len;
 		}
+
+		Ok(())
+	}
+
+	/// Resize the editor window on terminal resize event.
+	/// TODO: handle what happens to when columns resizes to less that `current_column`
+	pub fn resize(&mut self, columns: u16, rows: u16) -> TerminalResult<()> {
+		self.columns = columns;
+		self.rows = rows;
+
+		queue!(self.output, Clear(ClearType::All))?;
+
+		self.print_buffer()?;
 
 		Ok(())
 	}

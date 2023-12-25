@@ -3,7 +3,7 @@ mod keyboard;
 mod mode;
 mod terminal;
 
-use keyboard::handle_input;
+use keyboard::handle_event;
 use terminal::Terminal;
 
 type TerminalResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -14,7 +14,7 @@ fn main() -> TerminalResult<()> {
 	loop {
 		terminal.print_buffer().expect("Failed to print buffer");
 
-		if handle_input(&mut terminal)? {
+		if handle_event(&mut terminal)? {
 			break;
 		}
 	}
