@@ -104,18 +104,53 @@ impl Terminal {
 		match direction {
 			Direction::Up => todo!(),
 			Direction::Down => todo!(),
-			Direction::Left => {
-				if self.current_column > 0 {
-					queue!(self.output, MoveLeft(1))?;
-					self.current_column -= 1;
-				}
+			Direction::Left => self.move_left()?,
+			Direction::Right => self.move_right()?,
+		}
+
+		Ok(())
+	}
+
+	fn move_right(&mut self) -> TerminalResult<()> {
+		if (self.current_column) < self.buffer[self.current_row].len() {
+			// Not at end of line.
+
+			queue!(self.output, MoveRight(1))?;
+			self.current_column += 1;
+		} else {
+			// At end of final line.
+			if self.current_row + 1 == self.buffer.len() {
+				return Ok(());
 			}
-			Direction::Right => {
-				if (self.current_column) < self.buffer[self.current_row].len() {
-					queue!(self.output, MoveRight(1))?;
-					self.current_column += 1;
-				}
-			}
+
+			queue!(self.output, MoveToNextLine(1))?;
+			self.current_column = 0;
+			self.current_row += 1;
+		}
+
+		Ok(())
+	}
+
+	fn move_left(&mut self) -> TerminalResult<()> {
+		// At start top left corner.
+		if self.current_column == 0 && self.current_row == 0 {
+			return Ok(());
+		}
+
+		if self.current_column > 0 {
+			// Not at start of line.
+
+			queue!(self.output, MoveLeft(1))?;
+			self.current_column -= 1;
+		} else {
+			let previous_line_len = self.buffer[self.current_row - 1].len();
+			#[allow(clippy::cast_possible_truncation)]
+			queue!(
+				self.output,
+				MoveTo(previous_line_len as u16, self.current_row as u16 - 1)
+			)?;
+			self.current_row -= 1;
+			self.current_column = previous_line_len;
 		}
 
 		Ok(())
