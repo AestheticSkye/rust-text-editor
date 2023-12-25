@@ -12,7 +12,7 @@ fn main() -> TerminalResult<()> {
 	let mut terminal = Terminal::new()?;
 
 	loop {
-		terminal.print_buffer().expect("Failed to print buffer");
+		terminal.print_buffer()?;
 
 		if handle_event(&mut terminal)? {
 			break;

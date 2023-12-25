@@ -9,7 +9,7 @@ edition = "2021"
 all = "warn"
 pedantic = "warn"
 nursery = "warn"
-unwrap_used = "warn"
+unwrap_used = "deny"
 
 [dependencies]
 crossterm = "0.27.0"

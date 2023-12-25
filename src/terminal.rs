@@ -1,8 +1,8 @@
 use std::io::{stdout, Write};
 
 use crossterm::cursor::{
-	MoveLeft, MoveRight, MoveTo, MoveToColumn, MoveToNextLine, MoveToRow, MoveUp, RestorePosition,
-	SavePosition, Show,
+	MoveDown, MoveLeft, MoveRight, MoveTo, MoveToColumn, MoveToNextLine, MoveToRow, MoveUp,
+	RestorePosition, SavePosition, Show,
 };
 use crossterm::style::{Print, ResetColor, SetBackgroundColor};
 use crossterm::terminal::{
@@ -33,6 +33,7 @@ impl Drop for Terminal {
 	}
 }
 
+#[allow(clippy::cast_possible_truncation)]
 impl Terminal {
 	pub fn new() -> TerminalResult<Self> {
 		execute!(stdout(), EnterAlternateScreen)?;
@@ -70,7 +71,6 @@ impl Terminal {
 		Ok(())
 	}
 
-	// TODO: Make this respect backspacing newlines
 	pub fn backspace(&mut self) -> TerminalResult<()> {
 		if self.current_column == 0 && self.current_row == 0 {
 			return Ok(());
@@ -87,7 +87,6 @@ impl Terminal {
 			// Clears buffer so text can be rerendered cleanly.
 			queue!(self.output, Clear(ClearType::FromCursorDown))?;
 
-			#[allow(clippy::cast_possible_truncation)]
 			// Move curser up to previous line before concatenating the lines.
 			queue!(
 				self.output,
@@ -125,8 +124,8 @@ impl Terminal {
 
 	pub fn move_cursor(&mut self, direction: Direction) -> TerminalResult<()> {
 		match direction {
-			Direction::Up => todo!(),
-			Direction::Down => todo!(),
+			Direction::Up => self.move_up()?,
+			Direction::Down => self.move_down()?,
 			Direction::Left => self.move_left()?,
 			Direction::Right => self.move_right()?,
 		}
@@ -135,21 +134,21 @@ impl Terminal {
 	}
 
 	fn move_right(&mut self) -> TerminalResult<()> {
-		if (self.current_column) < self.buffer[self.current_row].len() {
+		// At end of final line.
+		if self.current_row + 1 == self.buffer.len() {
+			return Ok(());
+		}
+
+		if self.current_column < self.buffer[self.current_row].len() {
 			// Not at end of line.
 
 			queue!(self.output, MoveRight(1))?;
-			self.current_column += 1;
 		} else {
-			// At end of final line.
-			if self.current_row + 1 == self.buffer.len() {
-				return Ok(());
-			}
-
 			queue!(self.output, MoveToNextLine(1))?;
 			self.current_column = 0;
-			self.current_row += 1;
 		}
+
+		self.current_column += 1;
 
 		Ok(())
 	}
@@ -164,17 +163,55 @@ impl Terminal {
 			// Not at start of line.
 
 			queue!(self.output, MoveLeft(1))?;
-			self.current_column -= 1;
 		} else {
-			let previous_line_len = self.buffer[self.current_row - 1].len();
-			#[allow(clippy::cast_possible_truncation)]
+			// To move the curser to the end of the line.
+			let previous_line_length = self.buffer[self.current_row - 1].len();
 			queue!(
 				self.output,
-				MoveTo(previous_line_len as u16, self.current_row as u16 - 1)
+				MoveTo(previous_line_length as u16, self.current_row as u16 - 1)
 			)?;
-			self.current_row -= 1;
-			self.current_column = previous_line_len;
+			self.current_column = previous_line_length;
 		}
+
+		self.current_column -= 1;
+
+		Ok(())
+	}
+
+	// TODO: make this and move_up keep track of the column so the curser
+	// can go back after going on from a shorter line.... if that makes sense
+	fn move_down(&mut self) -> TerminalResult<()> {
+		if self.current_row >= self.buffer.len() - 1 {
+			return Ok(());
+		}
+
+		let next_row_length = self.buffer[self.current_row + 1].len();
+
+		if self.current_column > next_row_length {
+			queue!(self.output, MoveToColumn(next_row_length as u16))?;
+			self.current_column = next_row_length;
+		}
+
+		self.current_row += 1;
+		queue!(self.output, MoveDown(1))?;
+
+		Ok(())
+	}
+
+	fn move_up(&mut self) -> TerminalResult<()> {
+		if self.current_row == 0 {
+			return Ok(());
+		}
+
+		let previous_row_length = self.buffer[self.current_row - 1].len();
+
+		if self.current_column > previous_row_length {
+			queue!(self.output, MoveToColumn(previous_row_length as u16))?;
+			self.current_column = previous_row_length;
+		}
+
+		self.current_row -= 1;
+		queue!(self.output, MoveUp(1))?;
 
 		Ok(())
 	}
@@ -221,7 +258,6 @@ impl Terminal {
 
 		let right = format!(" {}:{}", self.current_row, self.current_column,);
 
-		#[allow(clippy::cast_possible_truncation)]
 		queue!(
 			self.output,
 			MoveToRow(self.rows - 2),
