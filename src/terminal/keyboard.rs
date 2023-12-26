@@ -49,16 +49,16 @@ impl Terminal {
 
 	/// Returns true if exit is requested
 	#[allow(clippy::match_same_arms)]
-	pub(super) fn normal_mode_key_event(&mut self, keycode: KeyCode) -> TerminalResult<bool> {
+	pub(super) fn normal_mode_key_event(&mut self, keycode: KeyCode) -> TerminalResult<()> {
 		match keycode {
 			KeyCode::Char(char) if self.mode == Mode::Normal => match char {
-				'q' => return Ok(true),
+				'q' => self.is_running = false,
 				'i' => self.mode = Mode::Insert,
 				_ => {}
 			},
 			_ => {}
 		}
-		Ok(false)
+		Ok(())
 	}
 
 	// TODO: make this respect `\t`.

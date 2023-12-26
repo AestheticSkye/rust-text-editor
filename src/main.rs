@@ -12,12 +12,10 @@ type TerminalResult<T> = Result<T, Box<dyn std::error::Error>>;
 fn main() -> TerminalResult<()> {
 	let mut terminal = Terminal::new()?;
 
-	loop {
+	while terminal.is_running {
 		terminal.print_buffer()?;
 
-		if terminal.handle_event()? {
-			break;
-		}
+		terminal.handle_event()?;
 	}
 
 	Ok(())

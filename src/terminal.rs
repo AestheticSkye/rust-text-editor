@@ -36,6 +36,8 @@ pub struct Terminal {
 	buffer: Vec<Vec<char>>,
 	/// The writer for the terminal, generally stdio.
 	output: Box<dyn Write>,
+	/// The terminals current running state
+	pub is_running: bool,
 	/// The current mode for terminal interaction.
 	pub mode: Mode,
 }
@@ -74,6 +76,7 @@ impl Terminal {
 			mode: Mode::Normal,
 			current_column: 0,
 			current_row: 0,
+			is_running: true,
 			output: Box::new(stdout()),
 		})
 	}
@@ -81,7 +84,7 @@ impl Terminal {
 	/// Handle an event in the terminals event loop.
 	///
 	/// Returns true if functions signifies a exit command.
-	pub fn handle_event(&mut self) -> TerminalResult<bool> {
+	pub fn handle_event(&mut self) -> TerminalResult<()> {
 		match read()? {
 			Event::Key(key_event) => match key_event.code {
 				// Movement works in any mode.
@@ -92,18 +95,14 @@ impl Terminal {
 				// Mode specific inputs.
 				_ => match self.mode {
 					Mode::Insert => self.insert_mode_key_event(key_event.code)?,
-					Mode::Normal => {
-						if self.normal_mode_key_event(key_event.code)? {
-							return Ok(true);
-						}
-					}
+					Mode::Normal => self.normal_mode_key_event(key_event.code)?,
 				},
 			},
 			Event::Resize(columns, rows) => self.resize(columns, rows)?,
 			_ => {}
 		}
 
-		Ok(false)
+		Ok(())
 	}
 
 	/// Resize the editor window on terminal resize event.
