@@ -63,35 +63,28 @@ impl Terminal {
 			return Ok(());
 		}
 
-		// Move the contents of this line to the previous.
-		if self.current_column == 0 {
-			let previous_line_len = self.buffer[self.current_row - 1].len();
+		// If cursor is not at the start of the line, just remove the character and move.
+		if self.current_column != 0 {
+			self.buffer[self.current_row].remove(self.current_column - 1);
 
-			let current_line = self.buffer.remove(self.current_row);
-
-			self.buffer[self.current_row - 1].extend(current_line);
-
-			// Clears buffer so text can be re-rendered cleanly.
-			queue!(self.output, Clear(ClearType::FromCursorDown))?;
-
-			// Move cursor up to previous line before concatenating the lines.
-			queue!(
-				self.output,
-				MoveUp(1),
-				MoveToColumn(previous_line_len as u16)
-			)?;
-
-			self.current_row -= 1;
-			self.current_column = previous_line_len;
+			self.move_left()?;
 
 			return Ok(());
 		}
 
-		self.buffer[self.current_row].remove(self.current_column - 1);
+		let previous_line_len = self.buffer[self.current_row - 1].len();
+		let current_line = self.buffer.remove(self.current_row);
 
-		self.current_column -= 1;
+		// Move the contents of this line to the previous.
+		self.buffer[self.current_row - 1].extend(current_line);
 
-		queue!(self.output, MoveLeft(1))?;
+		// Clears buffer so text can be re-rendered cleanly.
+		queue!(self.output, Clear(ClearType::FromCursorDown))?;
+
+		self.move_left()?;
+
+		self.current_column = previous_line_len;
+		queue!(self.output, MoveToColumn(previous_line_len as u16))?;
 
 		Ok(())
 	}

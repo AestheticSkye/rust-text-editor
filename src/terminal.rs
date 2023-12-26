@@ -18,17 +18,18 @@ use crate::mode::Mode;
 use crate::TerminalResult;
 
 pub struct Terminal {
-	columns:        u16,
-	rows:           u16,
+	columns: u16,
+	rows: u16,
 	current_column: usize,
-	current_row:    usize,
-	buffer:         Vec<Vec<char>>,
-	output:         Box<dyn std::io::Write>,
-	pub mode:       Mode,
+	current_row: usize,
+	buffer: Vec<Vec<char>>,
+	output: Box<dyn std::io::Write>,
+	pub mode: Mode,
 }
 
 impl Drop for Terminal {
 	fn drop(&mut self) {
+		#[allow(clippy::expect_used)]
 		disable_raw_mode().expect("Failed to disable raw mode");
 		execute!(self.output, ResetColor, Show, LeaveAlternateScreen)
 			.expect("Failed to clean up screen");
@@ -44,6 +45,7 @@ impl Terminal {
 		// Register a panic hook to run the drop behavior if the program panics.
 		// Required as panic errors will not get printed otherwise.
 		std::panic::set_hook(Box::new(|panic_info| {
+			#[allow(clippy::expect_used)]
 			disable_raw_mode().expect("Failed to disable raw mode");
 			execute!(stdout(), ResetColor, Show, LeaveAlternateScreen)
 				.expect("Failed to clean up screen");
@@ -128,8 +130,7 @@ impl Terminal {
 	/// Must be followed by an execute otherwise nothing will happen.
 	fn queue_status(&mut self) -> TerminalResult<()> {
 		let left = format!(" {} ", self.mode);
-
-		let right = format!(" {}:{}", self.current_row, self.current_column);
+		let right = format!(" {}:{} ", self.current_row, self.current_column);
 
 		queue!(
 			self.output,

@@ -9,6 +9,7 @@ edition = "2021"
 all = "warn"
 pedantic = "warn"
 nursery = "warn"
+expect_used = "warn"
 unwrap_used = "deny"
 
 [dependencies]
