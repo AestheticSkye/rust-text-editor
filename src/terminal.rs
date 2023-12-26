@@ -1,3 +1,8 @@
+//! The terminal used for the editor.
+//!
+//! This module is seperated into multiple submodules, with input handling within `self::keyboard`
+//! as well as cursor management within `self::keyboard::cursor`
+
 mod keyboard;
 
 use std::io::{stdout, Write};
@@ -17,13 +22,21 @@ use crate::direction::Direction;
 use crate::mode::Mode;
 use crate::TerminalResult;
 
+/// Terminal system for running the editor.
 pub struct Terminal {
+	/// Terminals width, changed on resize event.
 	columns: u16,
+	/// Terminals height, changed on resize event.
 	rows: u16,
+	/// Current cursor column location.
 	current_column: usize,
+	/// Current cursor row location.
 	current_row: usize,
+	/// Test buffer of user input.
 	buffer: Vec<Vec<char>>,
-	output: Box<dyn std::io::Write>,
+	/// The writer for the terminal, generally stdio.
+	output: Box<dyn Write>,
+	/// The current mode for terminal interaction.
 	pub mode: Mode,
 }
 
@@ -65,23 +78,21 @@ impl Terminal {
 		})
 	}
 
+	/// Handle an event in the terminals event loop.
+	///
+	/// Returns true if functions signifies a exit command.
 	pub fn handle_event(&mut self) -> TerminalResult<bool> {
 		match read()? {
 			Event::Key(key_event) => match key_event.code {
+				// Movement works in any mode.
 				KeyCode::Left => self.move_cursor(Direction::Left)?,
 				KeyCode::Right => self.move_cursor(Direction::Right)?,
 				KeyCode::Up => self.move_cursor(Direction::Up)?,
 				KeyCode::Down => self.move_cursor(Direction::Down)?,
+				// Mode specific inputs.
 				_ => match self.mode {
 					Mode::Insert => self.insert_mode_key_event(key_event.code)?,
-					Mode::Normal => match key_event.code {
-						KeyCode::Char(char) if self.mode == Mode::Normal => match char {
-							'q' => return Ok(true),
-							'i' => self.mode = Mode::Insert,
-							_ => {}
-						},
-						_ => {}
-					},
+					Mode::Normal => self.normal_mode_key_event(key_event.code)?,
 				},
 			},
 			Event::Resize(columns, rows) => self.resize(columns, rows)?,

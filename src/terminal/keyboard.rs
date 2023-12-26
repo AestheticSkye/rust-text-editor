@@ -1,7 +1,7 @@
 //! Terminal methods to handle keyboard interaction of the terminal.
 mod cursor;
 
-use crossterm::cursor::{MoveLeft, MoveRight, MoveToColumn, MoveToNextLine, MoveUp};
+use crossterm::cursor::{MoveRight, MoveToColumn};
 use crossterm::event::KeyCode;
 use crossterm::queue;
 use crossterm::terminal::{Clear, ClearType};
@@ -45,6 +45,20 @@ impl Terminal {
 		};
 
 		Ok(())
+	}
+
+	/// Returns true if exit is requested
+	#[allow(clippy::match_same_arms)]
+	pub(super) fn normal_mode_key_event(&mut self, keycode: KeyCode) -> TerminalResult<bool> {
+		match keycode {
+			KeyCode::Char(char) if self.mode == Mode::Normal => match char {
+				'q' => return Ok(true),
+				'i' => self.mode = Mode::Insert,
+				_ => {}
+			},
+			_ => {}
+		}
+		Ok(false)
 	}
 
 	// TODO: make this respect `\t`.
@@ -98,11 +112,8 @@ impl Terminal {
 		let next_line = self.buffer[self.current_row].split_off(self.current_column);
 
 		self.buffer.insert(self.current_row + 1, next_line);
-		self.current_row += 1;
-		self.current_column = 0;
 
-		queue!(self.output, MoveToNextLine(1))?;
-
+		self.move_right()?;
 		Ok(())
 	}
 }
