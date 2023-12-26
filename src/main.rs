@@ -1,9 +1,7 @@
 mod direction;
-mod keyboard;
 mod mode;
 mod terminal;
 
-use keyboard::handle_event;
 use terminal::Terminal;
 
 type TerminalResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -14,7 +12,7 @@ fn main() -> TerminalResult<()> {
 	loop {
 		terminal.print_buffer()?;
 
-		if handle_event(&mut terminal)? {
+		if terminal.handle_event()? {
 			break;
 		}
 	}

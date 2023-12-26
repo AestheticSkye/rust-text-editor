@@ -1,9 +1,11 @@
+mod keyboard;
+
 use std::io::{stdout, Write};
 
 use crossterm::cursor::{
-	MoveDown, MoveLeft, MoveRight, MoveTo, MoveToColumn, MoveToNextLine, MoveToRow, MoveUp,
-	RestorePosition, SavePosition, Show,
+	MoveTo, MoveToColumn, MoveToNextLine, MoveToRow, RestorePosition, SavePosition, Show,
 };
+use crossterm::event::{read, Event, KeyCode};
 use crossterm::style::{Print, ResetColor, SetBackgroundColor};
 use crossterm::terminal::{
 	disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
@@ -16,13 +18,13 @@ use crate::mode::Mode;
 use crate::TerminalResult;
 
 pub struct Terminal {
-	columns: u16,
-	rows: u16,
+	columns:        u16,
+	rows:           u16,
 	current_column: usize,
-	current_row: usize,
-	buffer: Vec<Vec<char>>,
-	output: Box<dyn std::io::Write>,
-	pub mode: Mode,
+	current_row:    usize,
+	buffer:         Vec<Vec<char>>,
+	output:         Box<dyn std::io::Write>,
+	pub mode:       Mode,
 }
 
 impl Drop for Terminal {
@@ -61,159 +63,30 @@ impl Terminal {
 		})
 	}
 
-	pub fn insert_char(&mut self, char: char) -> TerminalResult<()> {
-		self.buffer[self.current_row].insert(self.current_column, char);
-
-		self.current_column += 1;
-
-		queue!(self.output, MoveRight(1))?;
-
-		Ok(())
-	}
-
-	pub fn backspace(&mut self) -> TerminalResult<()> {
-		if self.current_column == 0 && self.current_row == 0 {
-			return Ok(());
+	pub fn handle_event(&mut self) -> TerminalResult<bool> {
+		match read()? {
+			Event::Key(key_event) => match key_event.code {
+				KeyCode::Left => self.move_cursor(Direction::Left)?,
+				KeyCode::Right => self.move_cursor(Direction::Right)?,
+				KeyCode::Up => self.move_cursor(Direction::Up)?,
+				KeyCode::Down => self.move_cursor(Direction::Down)?,
+				_ => match self.mode {
+					Mode::Insert => self.insert_mode_key_event(key_event.code)?,
+					Mode::Normal => match key_event.code {
+						KeyCode::Char(char) if self.mode == Mode::Normal => match char {
+							'q' => return Ok(true),
+							'i' => self.mode = Mode::Insert,
+							_ => {}
+						},
+						_ => {}
+					},
+				},
+			},
+			Event::Resize(columns, rows) => self.resize(columns, rows)?,
+			_ => {}
 		}
 
-		// Move the contents of this line to the previous.
-		if self.current_column == 0 {
-			let previous_line_len = self.buffer[self.current_row - 1].len();
-
-			let current_line = self.buffer.remove(self.current_row);
-
-			self.buffer[self.current_row - 1].extend(current_line);
-
-			// Clears buffer so text can be rerendered cleanly.
-			queue!(self.output, Clear(ClearType::FromCursorDown))?;
-
-			// Move curser up to previous line before concatenating the lines.
-			queue!(
-				self.output,
-				MoveUp(1),
-				MoveToColumn(previous_line_len as u16)
-			)?;
-
-			self.current_row -= 1;
-			self.current_column = previous_line_len;
-
-			return Ok(());
-		}
-
-		self.buffer[self.current_row].remove(self.current_column - 1);
-
-		self.current_column -= 1;
-
-		queue!(self.output, MoveLeft(1))?;
-
-		Ok(())
-	}
-
-	pub fn enter(&mut self) -> TerminalResult<()> {
-		// The characters to move to the next line.
-		let next_line = self.buffer[self.current_row].split_off(self.current_column);
-
-		self.buffer.insert(self.current_row + 1, next_line);
-		self.current_row += 1;
-		self.current_column = 0;
-
-		queue!(self.output, MoveToNextLine(1))?;
-
-		Ok(())
-	}
-
-	pub fn move_cursor(&mut self, direction: Direction) -> TerminalResult<()> {
-		match direction {
-			Direction::Up => self.move_up()?,
-			Direction::Down => self.move_down()?,
-			Direction::Left => self.move_left()?,
-			Direction::Right => self.move_right()?,
-		}
-
-		Ok(())
-	}
-
-	fn move_right(&mut self) -> TerminalResult<()> {
-		// At end of final line.
-		if self.current_row + 1 == self.buffer.len() {
-			return Ok(());
-		}
-
-		if self.current_column < self.buffer[self.current_row].len() {
-			// Not at end of line.
-
-			queue!(self.output, MoveRight(1))?;
-		} else {
-			queue!(self.output, MoveToNextLine(1))?;
-			self.current_column = 0;
-		}
-
-		self.current_column += 1;
-
-		Ok(())
-	}
-
-	fn move_left(&mut self) -> TerminalResult<()> {
-		// At start top left corner.
-		if self.current_column == 0 && self.current_row == 0 {
-			return Ok(());
-		}
-
-		if self.current_column > 0 {
-			// Not at start of line.
-
-			queue!(self.output, MoveLeft(1))?;
-		} else {
-			// To move the curser to the end of the line.
-			let previous_line_length = self.buffer[self.current_row - 1].len();
-			queue!(
-				self.output,
-				MoveTo(previous_line_length as u16, self.current_row as u16 - 1)
-			)?;
-			self.current_column = previous_line_length;
-		}
-
-		self.current_column -= 1;
-
-		Ok(())
-	}
-
-	// TODO: make this and move_up keep track of the column so the curser
-	// can go back after going on from a shorter line.... if that makes sense
-	fn move_down(&mut self) -> TerminalResult<()> {
-		if self.current_row >= self.buffer.len() - 1 {
-			return Ok(());
-		}
-
-		let next_row_length = self.buffer[self.current_row + 1].len();
-
-		if self.current_column > next_row_length {
-			queue!(self.output, MoveToColumn(next_row_length as u16))?;
-			self.current_column = next_row_length;
-		}
-
-		self.current_row += 1;
-		queue!(self.output, MoveDown(1))?;
-
-		Ok(())
-	}
-
-	fn move_up(&mut self) -> TerminalResult<()> {
-		if self.current_row == 0 {
-			return Ok(());
-		}
-
-		let previous_row_length = self.buffer[self.current_row - 1].len();
-
-		if self.current_column > previous_row_length {
-			queue!(self.output, MoveToColumn(previous_row_length as u16))?;
-			self.current_column = previous_row_length;
-		}
-
-		self.current_row -= 1;
-		queue!(self.output, MoveUp(1))?;
-
-		Ok(())
+		Ok(false)
 	}
 
 	/// Resize the editor window on terminal resize event.
@@ -256,7 +129,7 @@ impl Terminal {
 	fn queue_status(&mut self) -> TerminalResult<()> {
 		let left = format!(" {} ", self.mode);
 
-		let right = format!(" {}:{}", self.current_row, self.current_column,);
+		let right = format!(" {}:{}", self.current_row, self.current_column);
 
 		queue!(
 			self.output,
