@@ -92,7 +92,11 @@ impl Terminal {
 				// Mode specific inputs.
 				_ => match self.mode {
 					Mode::Insert => self.insert_mode_key_event(key_event.code)?,
-					Mode::Normal => self.normal_mode_key_event(key_event.code)?,
+					Mode::Normal => {
+						if self.normal_mode_key_event(key_event.code)? {
+							return Ok(true);
+						}
+					}
 				},
 			},
 			Event::Resize(columns, rows) => self.resize(columns, rows)?,
