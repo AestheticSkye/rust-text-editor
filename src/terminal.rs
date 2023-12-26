@@ -81,7 +81,7 @@ impl Terminal {
 		})
 	}
 
-	pub fn is_running(&self) -> bool {
+	pub const fn is_running(&self) -> bool {
 		self.is_running
 	}
 

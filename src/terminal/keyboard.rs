@@ -47,8 +47,7 @@ impl Terminal {
 		Ok(())
 	}
 
-	/// Returns true if exit is requested
-	#[allow(clippy::match_same_arms)]
+	#[allow(clippy::unnecessary_wraps)]
 	pub(super) fn normal_mode_key_event(&mut self, keycode: KeyCode) -> TerminalResult<()> {
 		match keycode {
 			KeyCode::Char(char) if self.mode == Mode::Normal => match char {
