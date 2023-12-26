@@ -36,10 +36,10 @@ pub struct Terminal {
 	buffer: Vec<Vec<char>>,
 	/// The writer for the terminal, generally stdio.
 	output: Box<dyn Write>,
-	/// The terminals current running state
-	pub is_running: bool,
+	/// The terminals current running state.
+	is_running: bool,
 	/// The current mode for terminal interaction.
-	pub mode: Mode,
+	mode: Mode,
 }
 
 impl Drop for Terminal {
@@ -79,6 +79,10 @@ impl Terminal {
 			is_running: true,
 			output: Box::new(stdout()),
 		})
+	}
+
+	pub fn is_running(&self) -> bool {
+		self.is_running
 	}
 
 	/// Handle an event in the terminals event loop.
