@@ -58,7 +58,8 @@ impl Terminal {
 		enable_raw_mode()?;
 
 		// Register a panic hook to run the drop behavior if the program panics.
-		// Required as panic errors will not get printed otherwise.
+		// Required because terminal is dropped *after* it attempts to print the panic message.
+		// Which causes the panic message to not appear in terminal.
 		std::panic::set_hook(Box::new(|panic_info| {
 			#[allow(clippy::expect_used)]
 			disable_raw_mode().expect("Failed to disable raw mode");

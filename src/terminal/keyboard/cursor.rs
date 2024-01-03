@@ -1,4 +1,5 @@
 //! Terminal methods to handle the movement of the terminals cursor.
+
 use crossterm::cursor::{
 	MoveDown, MoveLeft, MoveRight, MoveToColumn, MoveToNextLine, MoveToRow, MoveUp,
 };

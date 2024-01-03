@@ -1,4 +1,5 @@
 //! Terminal methods to handle keyboard interaction of the terminal.
+
 mod cursor;
 
 use crossterm::cursor::{MoveRight, MoveToColumn};
