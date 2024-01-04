@@ -6,11 +6,11 @@ use crossterm::cursor::{
 use crossterm::queue;
 
 use crate::terminal::Terminal;
-use crate::TerminalResult;
+use crate::Result;
 
 #[allow(clippy::cast_possible_truncation)]
 impl Terminal {
-	pub(super) fn move_right(&mut self) -> TerminalResult<()> {
+	pub(super) fn move_right(&mut self) -> Result<()> {
 		if self.current_column < self.buffer[self.current_row].len() {
 			// Not at end of line.
 
@@ -30,7 +30,7 @@ impl Terminal {
 		Ok(())
 	}
 
-	pub(super) fn move_left(&mut self) -> TerminalResult<()> {
+	pub(super) fn move_left(&mut self) -> Result<()> {
 		// At start top left corner.
 		if self.current_column == 0 && self.current_row == 0 {
 			return Ok(());
@@ -58,7 +58,7 @@ impl Terminal {
 
 	// TODO: make this and move_up keep track of the column so the cursor
 	// can go back after going on from a shorter line.... if that makes sense
-	pub(super) fn move_down(&mut self) -> TerminalResult<()> {
+	pub(super) fn move_down(&mut self) -> Result<()> {
 		if self.current_row >= self.buffer.len() - 1 {
 			return Ok(());
 		}
@@ -76,7 +76,7 @@ impl Terminal {
 		Ok(())
 	}
 
-	pub(super) fn move_up(&mut self) -> TerminalResult<()> {
+	pub(super) fn move_up(&mut self) -> Result<()> {
 		if self.current_row == 0 {
 			return Ok(());
 		}

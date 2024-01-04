@@ -20,7 +20,7 @@ use crossterm::{execute, queue};
 
 use crate::direction::Direction;
 use crate::mode::Mode;
-use crate::TerminalResult;
+use crate::Result;
 
 /// Terminal system for running the editor.
 pub struct Terminal {
@@ -53,7 +53,7 @@ impl Drop for Terminal {
 
 #[allow(clippy::cast_possible_truncation)]
 impl Terminal {
-	pub fn new() -> TerminalResult<Self> {
+	pub fn new() -> Result<Self> {
 		execute!(stdout(), EnterAlternateScreen)?;
 		enable_raw_mode()?;
 
@@ -89,7 +89,7 @@ impl Terminal {
 	/// Handle an event in the terminals event loop.
 	///
 	/// Returns true if functions signifies a exit command.
-	pub fn handle_event(&mut self) -> TerminalResult<()> {
+	pub fn handle_event(&mut self) -> Result<()> {
 		match read()? {
 			Event::Key(key_event) => match key_event.code {
 				// Movement works in any mode.
@@ -112,7 +112,7 @@ impl Terminal {
 
 	/// Resize the editor window on terminal resize event.
 	/// TODO: handle what happens to when columns resizes to less that `current_column`
-	pub fn resize(&mut self, columns: u16, rows: u16) -> TerminalResult<()> {
+	pub fn resize(&mut self, columns: u16, rows: u16) -> Result<()> {
 		self.columns = columns;
 		self.rows = rows;
 
@@ -123,7 +123,7 @@ impl Terminal {
 		Ok(())
 	}
 
-	pub fn print_buffer(&mut self) -> TerminalResult<()> {
+	pub fn print_buffer(&mut self) -> Result<()> {
 		queue!(self.output, SavePosition, MoveTo(0, 0))?;
 
 		for line in &self.buffer {
@@ -147,7 +147,7 @@ impl Terminal {
 	/// Queues the status bar to to the terminals output.
 	///
 	/// Must be followed by an execute otherwise nothing will happen.
-	fn queue_status(&mut self) -> TerminalResult<()> {
+	fn queue_status(&mut self) -> Result<()> {
 		let left = format!(" {} ", self.mode);
 		let right = format!(" {}:{} ", self.current_row, self.current_column);
 

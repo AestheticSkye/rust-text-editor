@@ -10,11 +10,11 @@ use crossterm::terminal::{Clear, ClearType};
 use crate::direction::Direction;
 use crate::mode::Mode;
 use crate::terminal::Terminal;
-use crate::TerminalResult;
+use crate::{clipboard, Result};
 
 #[allow(clippy::cast_possible_truncation)]
 impl Terminal {
-	pub(super) fn move_cursor(&mut self, direction: Direction) -> TerminalResult<()> {
+	pub(super) fn move_cursor(&mut self, direction: Direction) -> Result<()> {
 		match direction {
 			Direction::Up => self.move_up()?,
 			Direction::Down => self.move_down()?,
@@ -26,7 +26,7 @@ impl Terminal {
 	}
 
 	#[allow(clippy::match_same_arms)]
-	pub(super) fn insert_mode_key_event(&mut self, keycode: KeyCode) -> TerminalResult<()> {
+	pub(super) fn insert_mode_key_event(&mut self, keycode: KeyCode) -> Result<()> {
 		match keycode {
 			KeyCode::Backspace => self.backspace()?,
 			KeyCode::Enter => self.enter()?,
@@ -34,11 +34,11 @@ impl Terminal {
 			KeyCode::End => {}
 			KeyCode::PageUp => {}
 			KeyCode::PageDown => {}
-			KeyCode::Tab => self.insert_char('\t')?,
+			KeyCode::Tab => self.insert_chars(&['\t'])?,
 			KeyCode::BackTab => {}
 			KeyCode::Delete => self.delete()?,
 			KeyCode::Insert => {}
-			KeyCode::Char(char) => self.insert_char(char)?,
+			KeyCode::Char(char) => self.insert_chars(&[char])?,
 			KeyCode::Esc => self.mode = Mode::Normal,
 			KeyCode::KeypadBegin => {}
 			KeyCode::Modifier(_) => {}
@@ -49,11 +49,12 @@ impl Terminal {
 	}
 
 	#[allow(clippy::unnecessary_wraps)]
-	pub(super) fn normal_mode_key_event(&mut self, keycode: KeyCode) -> TerminalResult<()> {
+	pub(super) fn normal_mode_key_event(&mut self, keycode: KeyCode) -> Result<()> {
 		match keycode {
 			KeyCode::Char(char) if self.mode == Mode::Normal => match char {
 				'q' => self.is_running = false,
 				'i' => self.mode = Mode::Insert,
+				'p' => self.paste()?,
 				_ => {}
 			},
 			_ => {}
@@ -61,18 +62,33 @@ impl Terminal {
 		Ok(())
 	}
 
-	// TODO: make this respect `\t`.
-	pub fn insert_char(&mut self, char: char) -> TerminalResult<()> {
-		self.buffer[self.current_row].insert(self.current_column, char);
+	fn paste(&mut self) -> Result<()> {
+		let Some(text) = clipboard::get_text()? else {
+			return Ok(());
+		};
 
-		self.current_column += 1;
-
-		queue!(self.output, MoveRight(1))?;
+		self.insert_chars(&text.chars().collect::<Vec<char>>())?;
 
 		Ok(())
 	}
 
-	pub fn backspace(&mut self) -> TerminalResult<()> {
+	/// Insert characters into the editors buffer on the current line.
+	fn insert_chars(&mut self, chars: &[char]) -> Result<()> {
+		for char in chars {
+			if *char == '\n' {
+				self.enter()?;
+			} else {
+				self.buffer[self.current_row].insert(self.current_column, *char);
+				self.current_column += 1;
+			}
+		}
+
+		queue!(self.output, MoveRight(chars.len() as u16))?;
+
+		Ok(())
+	}
+
+	fn backspace(&mut self) -> Result<()> {
 		if self.current_column == 0 && self.current_row == 0 {
 			return Ok(());
 		}
@@ -103,11 +119,11 @@ impl Terminal {
 		Ok(())
 	}
 
-	pub fn delete(&mut self) -> TerminalResult<()> {
+	fn delete(&mut self) -> Result<()> {
 		todo!()
 	}
 
-	pub fn enter(&mut self) -> TerminalResult<()> {
+	fn enter(&mut self) -> Result<()> {
 		// The characters to move to the next line.
 		let next_line = self.buffer[self.current_row].split_off(self.current_column);
 
